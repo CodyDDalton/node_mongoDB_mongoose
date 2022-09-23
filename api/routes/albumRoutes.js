@@ -2,46 +2,63 @@ const express = require("express");
 const mongoose= require("mongoose");
 const router = express.Router();
 const Album = require("../models/album");
+const Messages = require("../messages/messages");
 
 //get album
-router.get("/", (req, res, next) => {
-    mongoose.get("/", () => {
-        res.status(200).json({
-            message:"Connected to album database!"
-        })
-    })
-});
+router.get('/', (req, res) => {
+    Album.find()
+        .select("title artist _id")
+        .exec()                                 
+        .then(albums => 
+            res.json(albums));
+        });
+        
 
 //post album
 router.post("/", (req, res, next) => {
-    const newAlbum = new Album({
-        _id:mongoose.Types.ObjectId(),
-        title:req.body.title,
-        artist:req.body.artist,
-    });
 
-    //write to database
-    newAlbum.save()
-        .then(result => {
-            console.log(result);
-            res.status(200).json({
-                message:"Album added!",
-                album:{
-                    title:result.title,
-                    artist:result.artist,
-                    id:result._id,
-                    metadata:{
-                        method:req.method,
-                        host:req.hostname,
-                    }
-                }
+    Album.find({ 
+        title: req.body.title, 
+        artist: req.body.artist 
+    })
+    .exec()
+    .then(result => {
+        console.log(result);
+        if(result.length > 0){
+            return res.status(200).json({
+                message: Messages.album_already_cataloged,
             })
-        })
-        .catch(err =>{
+        }
+        else{
+            const newAlbum = new Album({
+                _id:mongoose.Types.ObjectId(),
+                title:req.body.title,
+                artist:req.body.artist,
+            });
+            
+            newAlbum.save()
+                .then(result => {
+                    console.log(result);
+                    res.status(200).json({
+                        message: Messages.album_added,
+                        album:{
+                            title:result.title,
+                            artist:result.artist,
+                            id:result._id,
+                            metadata:{
+                                method:req.method,
+                                host:req.hostname,
+                            }
+                        }
+                    })
+                })
+        }
+    })
+    .catch(err =>{
             console.error(err.message);
             res.status(500).json({
                 error:{
-                    message:err.message,
+                    message: Messages.unable_to_add_album,
                 }
             })
         })
@@ -51,14 +68,17 @@ router.post("/", (req, res, next) => {
 router.get("/:albumId", (req, res, next) => {
     const albumId = req.params.albumId;
     Album.findById(albumId)
-        .then(result => {
+        .select("title artist _id")
+        .exec()
+        .then(album => {
             res.status(200).json({
-                message: "Found album by ID!",
-                album: { title: result.title, artist: result.artist, id: result._id },
+                message: Messages.got_album_id,
+                album: { album,
                 metadata:{
-                    host:req.hostname,
-                    method:req.method,
+                    method: req.method,
+                    host: req.hostname
                 }
+            }
             })
         })
         .catch(err => {
@@ -82,13 +102,13 @@ router.patch("/:albumId", (req, res, next) => {
     Album.findByIdAndUpdate(albumId, { $set: { title: updatedAlbum.title, artist: updatedAlbum.artist }})
     .then(result => {
         res.status(200).json({
-            message: "Updated album!",
-            album: {title: result.title, artist: result.artist, _id: result._id,
+            message: Messages.album_update,
+            album: {title: req.body.title, artist: req.body.artist,
+                metadata:{
+                    host:req.hostname,
+                    method:req.method,
+                }
             },
-            metadata:{
-                host:req.hostname,
-                method:req.method,
-            }
         })
     })
     .catch(err => {
@@ -96,7 +116,7 @@ router.patch("/:albumId", (req, res, next) => {
             error:{
                 message: err.message,
             }
-        })
+        });
     });
 });
 
@@ -105,12 +125,16 @@ router.delete("/:albumId", (req, res, next) => {
    
     Album.findByIdAndRemove(albumId)
         .then(result => {
-            res.status(200).json({
-                message: "Album has been deleted!",
+            res.status(202).json({
+                message: Messages.album_deleted,
+                album:{
+                    title:result.title,
+                    artist:result.artist,
                 metadata:{
                     host:req.hostname,
                     method:req.method,
                 }
+            }
             })
         })
         .catch(err => {

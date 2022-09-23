@@ -4,6 +4,7 @@ require("dotenv").config();
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 const albumRoutes = require("../api/routes/albumRoutes");
+const artistRoutes = require("../api/routes/artistRoutes");
 
 
 //middleware for logging
@@ -16,14 +17,8 @@ app.use(express.urlencoded({
 //middleware JSON
 app.use(express.json());
 
-app.get("/", (req, res, next) => {
-    res.status(201).json({
-        message:"Service is Up!",
-        method: req.method
-    });
-});
-
 app.use("/album", albumRoutes);
+app.use("/artist", artistRoutes);
 
 //middleware to handle CORS policy
 app.use((req,res, next) => {
